@@ -14,7 +14,7 @@ import os
 
 apps = {}
 
-def SearchAppId(app): 
+def search_app_id(app): 
   url = "http://itunes.apple.com/search?term=" + app + "&entity=software"
   r = requests.get(url)
   html = r.content
@@ -30,7 +30,7 @@ def SearchAppId(app):
     apps[app_id] = app_name
     print('name: ' + app_name, 'id: ' + str(app_id))
 
-def SaveContent(wb, ws, app_id, app_name, row):
+def save_content(wb, ws, app_id, app_name, row):
     # row = 2
 
     for j in range(1, 11): # 只能爬取前10页
@@ -64,14 +64,24 @@ def SaveContent(wb, ws, app_id, app_name, row):
         # 每一页爬取延迟2秒，以防过于频繁  
         time.sleep(2)
     wb.save('app_store.xlsx')
-def startFetch(wb, ws):
+def is_ok(msg):
+  questions = [
+    inquirer.List('is_ok',
+                  message=msg,
+                  choices=['yes', 'no'],
+    ),
+  ]
+  answers = inquirer.prompt(questions)
+
+  return True if answers['is_ok'] == 'yes' else False
+def start_fetch(wb, ws):
   
   # name_list = wb.sheetnames
-  is_continue = 'yes'
+  is_continue = True
   ids = []
 
-  while is_continue == 'yes':
-    app_id = input("input app's id: \n")
+  while is_continue:
+    app_id = input("请输入app id: \n")
     
     if not int(app_id) in apps:
       break
@@ -81,39 +91,60 @@ def startFetch(wb, ws):
     print('应用名称: ' + app_name)
 
     ids.append({ 'app_id': app_id, 'app_name': app_name })
-    questions = [
-      inquirer.List('continue',
-                    message="需要继续输入appId吗",
-                    choices=['yes', 'no'],
-      ),
-    ]
-    answers = inquirer.prompt(questions)
-    is_continue = answers['continue']
+
+    is_continue = is_ok('还要继续抓取其他app的评论数据吗')
   
-  row = ws.max_row
 
   for i in range(len(ids)):
-    SaveContent(wb, ws, ids[i]['app_id'], ids[i]['app_name'] , row+1)
+    row = ws.max_row
+    save_content(wb, ws, ids[i]['app_id'], ids[i]['app_name'] , row+1)
+
+def create_sheet_name():
+  questions = [
+    inquirer.Text('sheet_name', message="请输入新表名称?")
+  ]
+  answers = inquirer.prompt(questions)
+  sheet_name = answers['sheet_name'] or 'comment'
+
+  return sheet_name
+
+def select_sheet(sheets):
+  questions = [
+      inquirer.List('sheet_name',
+                    message="选择表",
+                    choices=sheets
+      )
+  ]
+  answers = inquirer.prompt(questions)
+  sheet_name = answers['sheet_name']
+
+  return sheet_name
+
 
 def main():
 
     # appid = input("请输入应用id号:")
     name = input("请输入应用名称:")
-    SearchAppId(name)
+    search_app_id(name)
     
-    # if not os.path.exists(appid):
-        # os.system('mkdir ' + appid)
-
     if os.path.exists('app_store.xlsx'):
       wb = openpyxl.load_workbook('app_store.xlsx')
-      ws = wb['comment']
+      
 
-      startFetch(wb, ws)
+      if is_ok('是否创建新表'):
+        sheet_name = create_sheet_name()
+        ws = wb.create_sheet(sheet_name)
+      else:
+        sheets = wb.sheetnames
+        ws = wb[select_sheet(sheets)]
+
+      start_fetch(wb, ws)
     else:
       # Workbook init
       wb = openpyxl.Workbook()
       ws = wb.active
-      ws.title = 'comment'
+
+      ws.title = create_sheet_name()
 
       ws.cell(row=1, column=1, value="APP ID")
       ws.cell(row=1, column=2, value="APP 名称")
@@ -123,7 +154,7 @@ def main():
       ws.cell(row=1, column=6, value="评论")
       ws.cell(row=1, column=7, value="版本")
 
-      startFetch(wb, ws)
+      start_fetch(wb, ws)
 
     
     print('Done!')
