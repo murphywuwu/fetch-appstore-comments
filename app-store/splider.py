@@ -29,6 +29,8 @@ def search_app_id(app):
     app_id = results[i]['trackId']
     apps[app_id] = app_name
     print('name: ' + app_name, 'id: ' + str(app_id))
+  
+  return resultCount
 
 def save_data_to_ws(wb, ws, data, app):
   app_id = app['app_id']
@@ -136,16 +138,18 @@ def write_ws(ws, fields, row):
   for i in range(len(fields)):
     ws.cell(row= row if row else max_row + 1 , column=i+1, value=fields[i])  
 
-def create_ws(wb):
-  sheet_name = input_name('请输入新表名称?','comment')
-  ws = wb.create_sheet(sheet_name)
+def create_ws(wb, sheet_name):
   
+  if not sheet_name:
+    sheet_name = input_name('请输入新表名称?','comment')
+  ws = wb.create_sheet(sheet_name)
+
   return ws
 
 def main():
 
     name = input("请输入应用名称:")
-    search_app_id(name)
+    resultCount = search_app_id(name)
 
     comment_fields = [
       'APP ID',
@@ -160,9 +164,11 @@ def main():
     if os.path.exists('app_store.xlsx'):
       wb = openpyxl.load_workbook('app_store.xlsx')
       
+      ws_keyword = wb['keyword']
+      write_ws(ws_keyword, [name, resultCount], False)
 
       if is_ok('是否创建新表'):
-        ws = create_ws(wb)
+        ws = create_ws(wb, False)
         write_ws(ws, comment_fields, 1)
       
       else:
@@ -173,9 +179,13 @@ def main():
     else:
       # Workbook init
       wb = openpyxl.Workbook()
-      ws = wb.active
 
-      ws.title = input_name('请输入新表名称?', 'comment')
+      ws_keyword = create_ws(wb, 'keyword')
+      write_ws(ws_keyword, ['关键词', '结果数'], 1)
+      write_ws(ws_keyword, [name, resultCount], False)
+
+      ws = wb.active
+      ws.title = input_name('请输入新表名称?','comment')
       write_ws(ws, comment_fields, 1)
 
       start_fetch(wb, ws)
