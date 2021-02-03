@@ -64,16 +64,7 @@ def save_content(wb, ws, app_id, app_name, row):
         # 每一页爬取延迟2秒，以防过于频繁  
         time.sleep(2)
     wb.save('app_store.xlsx')
-def is_ok(msg):
-  questions = [
-    inquirer.List('is_ok',
-                  message=msg,
-                  choices=['yes', 'no'],
-    ),
-  ]
-  answers = inquirer.prompt(questions)
 
-  return True if answers['is_ok'] == 'yes' else False
 def start_fetch(wb, ws):
   
   # name_list = wb.sheetnames
@@ -99,44 +90,69 @@ def start_fetch(wb, ws):
     row = ws.max_row
     save_content(wb, ws, ids[i]['app_id'], ids[i]['app_name'] , row+1)
 
-def create_sheet_name():
+def is_ok(msg):
   questions = [
-    inquirer.Text('sheet_name', message="请输入新表名称?")
+    inquirer.List('is_ok',
+                  message=msg,
+                  choices=['yes', 'no'],
+    ),
   ]
   answers = inquirer.prompt(questions)
-  sheet_name = answers['sheet_name'] or 'comment'
 
-  return sheet_name
+  return True if answers['is_ok'] == 'yes' else False
 
-def select_sheet(sheets):
+def input_name(msg, default):
   questions = [
-      inquirer.List('sheet_name',
-                    message="选择表",
-                    choices=sheets
+    inquirer.Text('name', message=msg)
+  ]
+  answers = inquirer.prompt(questions)
+  name = answers['name'] or default
+
+  return name
+
+def select(msg, choices):
+  questions = [
+      inquirer.List('choices',
+                    message=msg,
+                    choices=choices
       )
   ]
   answers = inquirer.prompt(questions)
-  sheet_name = answers['sheet_name']
+  choice = answers['choices']
 
-  return sheet_name
+  return choice
 
+def init_ws(ws, fields):
+  for i in range(len(fields)):
+    ws.cell(row=1, column=i+1, value=fields[i])
 
 def main():
 
-    # appid = input("请输入应用id号:")
     name = input("请输入应用名称:")
     search_app_id(name)
+
+    comment_fields = [
+      'APP ID',
+      'APP 名称',
+      '昵称',
+      '评分',
+      '用户id',
+      '评论',
+      '版本'
+    ]
     
     if os.path.exists('app_store.xlsx'):
       wb = openpyxl.load_workbook('app_store.xlsx')
       
 
       if is_ok('是否创建新表'):
-        sheet_name = create_sheet_name()
+        sheet_name = input_name('请输入新表名称?','comment')
         ws = wb.create_sheet(sheet_name)
+        init_ws(ws, comment_fields)
+      
       else:
         sheets = wb.sheetnames
-        ws = wb[select_sheet(sheets)]
+        ws = wb[select('选择表', sheets)]
 
       start_fetch(wb, ws)
     else:
@@ -144,15 +160,8 @@ def main():
       wb = openpyxl.Workbook()
       ws = wb.active
 
-      ws.title = create_sheet_name()
-
-      ws.cell(row=1, column=1, value="APP ID")
-      ws.cell(row=1, column=2, value="APP 名称")
-      ws.cell(row=1, column=3, value="昵称")
-      ws.cell(row=1, column=4, value="评分")
-      ws.cell(row=1, column=5, value="用户id")
-      ws.cell(row=1, column=6, value="评论")
-      ws.cell(row=1, column=7, value="版本")
+      ws.title = input_name('请输入新表名称?', 'comment')
+      init_ws(ws, comment_fields)
 
       start_fetch(wb, ws)
 
