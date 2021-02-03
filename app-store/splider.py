@@ -30,44 +30,49 @@ def search_app_id(app):
     apps[app_id] = app_name
     print('name: ' + app_name, 'id: ' + str(app_id))
 
-def save_content(wb, ws, app_id, app_name, row):
-    # row = 2
+def save_data_to_ws(wb, ws, data, app):
+  app_id = app['app_id']
+  app_name = app['app_name']
 
-    for j in range(1, 11): # 只能爬取前10页
-        url = 'https://itunes.apple.com/rss/customerreviews/page=' + str(j) + '/id=' + str(app_id) + '/sortby=mostrecent/json?l=en&&cc=cn'
-        print('当前地址：' + url)
-       
-        r = requests.get(url)
+  for i in data:
+    name = i['author']['name']['label']
+    rate = i['im:rating']['label']
+    user_id = i['id']['label']
+    content = i['content']['label']
+    version = i['im:version']['label']
+    
+    # print(name, rate, user_id,  content)
+    write_ws(ws, [
+      app_id,
+      app_name,
+      name,
+      rate,
+      user_id, 
+      content,
+      version
+    ], False)  
+  wb.save('app_store.xlsx')
 
-        if r.status_code == 200:
-          html = r.content
-          html_doc = str(html, 'utf-8')
-          data = json.loads(html_doc)['feed'].get('entry') or []
-          for i in data:
-            name = i['author']['name']['label']
-            rate = i['im:rating']['label']
-            user_id = i['id']['label']
-            content = i['content']['label']
-            version = i['im:version']['label']
+def fetch_app_comment(app_id):
+  comments = []
 
-            ws.cell(row=row, column=1, value=app_id)
-            ws.cell(row=row, column=2, value=app_name)
-            ws.cell(row=row, column=3, value=name)
-            ws.cell(row=row, column=4, value=rate)
-            ws.cell(row=row, column=5, value=user_id)
-            ws.cell(row=row, column=6, value=content)
-            ws.cell(row=row, column=7, value=version)
+  for j in range(1, 11):
+    url = 'https://itunes.apple.com/rss/customerreviews/page=' + str(j) + '/id=' + str(app_id) + '/sortby=mostrecent/json?l=en&&cc=cn'
+    print('当前地址：' + url)
+    r = requests.get(url)
+    
+    if r.status_code == 200:
+      html = r.content
+      html_doc = str(html, 'utf-8')
+      entry = json.loads(html_doc)['feed'].get('entry') or []
+      data =  entry if isinstance(entry, list) else []
+      comments = comments + data
+      print('一共有: ' + str(len(comments)) + '条数据')
 
-            row = row + 1
-            print(name, rate, user_id,  content)
-
-        # 每一页爬取延迟2秒，以防过于频繁  
-        time.sleep(2)
-    wb.save('app_store.xlsx')
-
-def start_fetch(wb, ws):
+    time.sleep(2)
   
-  # name_list = wb.sheetnames
+  return comments
+def get_app_ids():
   is_continue = True
   ids = []
 
@@ -84,11 +89,14 @@ def start_fetch(wb, ws):
     ids.append({ 'app_id': app_id, 'app_name': app_name })
 
     is_continue = is_ok('还要继续抓取其他app的评论数据吗')
-  
+  return ids
+
+def start_fetch(wb, ws):
+  ids = get_app_ids()
 
   for i in range(len(ids)):
-    row = ws.max_row
-    save_content(wb, ws, ids[i]['app_id'], ids[i]['app_name'] , row+1)
+    data = fetch_app_comment(ids[i]['app_id'])
+    save_data_to_ws(wb, ws, data , ids[i])
 
 def is_ok(msg):
   questions = [
@@ -122,9 +130,11 @@ def select(msg, choices):
 
   return choice
 
-def init_ws(ws, fields):
+def write_ws(ws, fields, row):
+  max_row = ws.max_row
+
   for i in range(len(fields)):
-    ws.cell(row=1, column=i+1, value=fields[i])
+    ws.cell(row= row if row else max_row + 1 , column=i+1, value=fields[i])  
 
 def main():
 
@@ -148,7 +158,7 @@ def main():
       if is_ok('是否创建新表'):
         sheet_name = input_name('请输入新表名称?','comment')
         ws = wb.create_sheet(sheet_name)
-        init_ws(ws, comment_fields)
+        write_ws(ws, comment_fields, 1)
       
       else:
         sheets = wb.sheetnames
@@ -161,7 +171,7 @@ def main():
       ws = wb.active
 
       ws.title = input_name('请输入新表名称?', 'comment')
-      init_ws(ws, comment_fields)
+      write_ws(ws, comment_fields, 1)
 
       start_fetch(wb, ws)
 
