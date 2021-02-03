@@ -136,6 +136,12 @@ def write_ws(ws, fields, row):
   for i in range(len(fields)):
     ws.cell(row= row if row else max_row + 1 , column=i+1, value=fields[i])  
 
+def create_ws(wb):
+  sheet_name = input_name('请输入新表名称?','comment')
+  ws = wb.create_sheet(sheet_name)
+  
+  return ws
+
 def main():
 
     name = input("请输入应用名称:")
@@ -156,8 +162,7 @@ def main():
       
 
       if is_ok('是否创建新表'):
-        sheet_name = input_name('请输入新表名称?','comment')
-        ws = wb.create_sheet(sheet_name)
+        ws = create_ws(wb)
         write_ws(ws, comment_fields, 1)
       
       else:
