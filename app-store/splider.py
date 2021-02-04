@@ -82,10 +82,10 @@ def get_app_ids():
     app_id = input("请输入app id: \n")
     
     if not int(app_id) in apps:
-      break
-    
-
-    app_name = apps[int(app_id)]
+      app_name = input("请输入app name: \n")
+    else:
+      app_name = apps[int(app_id)]
+   
     print('应用名称: ' + app_name)
 
     ids.append({ 'app_id': app_id, 'app_name': app_name })
